@@ -1,31 +1,57 @@
 import { MongoClient } from 'mongodb';
+import { promisify } from 'util';
 
 class DBClient {
   constructor() {
     const host = process.env.DB_HOST || 'localhost';
     const port = process.env.DB_PORT || 27017;
     const database = process.env.DB_DATABASE || 'files_manager';
-    this.client = new MongoClient(`mongodb://${host}:${port}`);
-    this.db = this.client.db(database);
-    
-    // Connect to the database
-    this.client.connect()
-      .then(() => {
-        console.log('Connected to MongoDB');
-      })
-      .catch((err) => {
-        console.error('Error connecting to MongoDB:', err);
-      });
+    const url = `mongodb://${host}:${port}`;
+
+    this.client = new MongoClient(url, { useUnifiedTopology: true });
+    this.dbName = database;
+
+    // Initialize the connection
+    this.connectClient();
   }
 
+  async connectClient() {
+    try {
+      await this.client.connect();
+      this.db = this.client.db(this.dbName);
+      console.log('MongoDB connected successfully');
+    } catch (error) {
+      console.error(`Error connecting to MongoDB: ${error.message}`);
+    }
+  }
+
+  // Check if the MongoDB client is connected
+  isAlive() {
+    return this.client.isConnected();
+  }
+
+  // Get the number of documents in the 'users' collection
   async nbUsers() {
-    const count = await this.db.collection('users').countDocuments();
-    return count;
+    try {
+      const usersCollection = this.db.collection('users');
+      const usersCount = await usersCollection.countDocuments();
+      return usersCount;
+    } catch (error) {
+      console.error(`Error counting users: ${error.message}`);
+      return 0;
+    }
   }
 
+  // Get the number of documents in the 'files' collection
   async nbFiles() {
-    const count = await this.db.collection('files').countDocuments();
-    return count;
+    try {
+      const filesCollection = this.db.collection('files');
+      const filesCount = await filesCollection.countDocuments();
+      return filesCount;
+    } catch (error) {
+      console.error(`Error counting files: ${error.message}`);
+      return 0;
+    }
   }
 
   async saveUser(user) {
@@ -34,5 +60,6 @@ class DBClient {
   }
 }
 
+// Create and export an instance of DBClient
 const dbClient = new DBClient();
 export default dbClient;
