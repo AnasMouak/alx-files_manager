@@ -3,53 +3,46 @@ import { promisify } from 'util';
 
 class RedisClient {
   constructor() {
-    this.client = redis.createClient();
-
-    this.client.on('error', (err) => {
-      console.error(`Redis client error: ${err}`);
+    this.client = redis.createClient({
+      host: process.env.REDIS_HOST || '127.0.0.1',
+      port: process.env.REDIS_PORT || 6379,
+      retry_strategy: (options) => {
+        if (options.error && options.error.code === 'ECONNREFUSED') {
+          return new Error('The server refused the connection');
+        }
+        if (options.total_retry_time > 1000 * 60 * 60) {
+          return new Error('Retry time exhausted');
+        }
+        if (options.attempt > 10) {
+          return undefined;
+        }
+        return Math.min(options.attempt * 100, 3000);
+      },
     });
 
-    // Promisify the Redis functions to use them with async/await
+    this.client.on('error', (error) => {
+      console.error(`Redis client error: ${error}`);
+    });
+
     this.getAsync = promisify(this.client.get).bind(this.client);
     this.setAsync = promisify(this.client.set).bind(this.client);
     this.delAsync = promisify(this.client.del).bind(this.client);
-
-    this.connected = false;
-
-    // Listen for the 'connect' event to confirm connection
-    this.client.on('connect', () => {
-      this.connected = true;
-    });
   }
 
   isAlive() {
-    return this.connected;
+    return this.client.connected;
   }
 
   async get(key) {
-    try {
-      const value = await this.getAsync(key);
-      return value;
-    } catch (error) {
-      console.error(`Error getting key ${key}: ${error}`);
-      return null;
-    }
+    return this.getAsync(key);
   }
 
   async set(key, value, duration) {
-    try {
-      await this.setAsync(key, value, 'EX', duration);
-    } catch (error) {
-      console.error(`Error setting key ${key}: ${error}`);
-    }
+    await this.setAsync(key, value, 'EX', duration);
   }
 
   async del(key) {
-    try {
-      await this.delAsync(key);
-    } catch (error) {
-      console.error(`Error deleting key ${key}: ${error}`);
-    }
+    await this.delAsync(key);
   }
 }
 
