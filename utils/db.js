@@ -58,6 +58,16 @@ class DBClient {
     const result = await this.db.collection('users').insertOne(user);
     return result;
   }
+
+  async findUserByEmailAndPassword(email, password) {
+    const user = await this.db.collection('users').findOne({ email, password });
+    return user;
+  }
+
+  async findUserById(id) {
+    const user = await this.db.collection('users').findOne({ _id: new ObjectId(id) });
+    return user;
+  }
 }
 
 // Create and export an instance of DBClient
