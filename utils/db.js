@@ -27,7 +27,7 @@ class DBClient {
 
   // Check if the MongoDB client is connected
   isAlive() {
-    return this.client.isConnected();
+    return this.client && this.client.topology && this.client.topology.isConnected();
   }
 
   // Get the number of documents in the 'users' collection
