@@ -1,54 +1,36 @@
 import { MongoClient } from 'mongodb';
-import { promisify } from 'util';
 
 class DBClient {
   constructor() {
     const host = process.env.DB_HOST || 'localhost';
     const port = process.env.DB_PORT || 27017;
     const database = process.env.DB_DATABASE || 'files_manager';
-    const url = `mongodb://${host}:${port}`;
-
-    this.client = new MongoClient(url, { useUnifiedTopology: true });
-    this.dbName = database;
-
-    // Initialize the connection
-    this.connectClient();
-  }
-
-  async connectClient() {
-    try {
-      await this.client.connect();
-      this.db = this.client.db(this.dbName);
-      console.log('MongoDB connected successfully');
-    } catch (error) {
-      console.error(`Error connecting to MongoDB: ${error.message}`);
-    }
-  }
-
-  isAlive() {
-    return this.client.isConnected();
+    this.client = new MongoClient(`mongodb://${host}:${port}`);
+    this.db = this.client.db(database);
+    
+    // Connect to the database
+    this.client.connect()
+      .then(() => {
+        console.log('Connected to MongoDB');
+      })
+      .catch((err) => {
+        console.error('Error connecting to MongoDB:', err);
+      });
   }
 
   async nbUsers() {
-    try {
-      const usersCollection = this.db.collection('users');
-      const usersCount = await usersCollection.countDocuments();
-      return usersCount;
-    } catch (error) {
-      console.error(`Error counting users: ${error.message}`);
-      return 0;
-    }
+    const count = await this.db.collection('users').countDocuments();
+    return count;
   }
 
   async nbFiles() {
-    try {
-      const filesCollection = this.db.collection('files');
-      const filesCount = await filesCollection.countDocuments();
-      return filesCount;
-    } catch (error) {
-      console.error(`Error counting files: ${error.message}`);
-      return 0;
-    }
+    const count = await this.db.collection('files').countDocuments();
+    return count;
+  }
+
+  async saveUser(user) {
+    const result = await this.db.collection('users').insertOne(user);
+    return result;
   }
 }
 
